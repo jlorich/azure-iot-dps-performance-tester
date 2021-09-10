@@ -10,6 +10,9 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Security.Cryptography.X509Certificates;
+using System.IO;
+using Microsoft.Extensions.Http;
 
 namespace azure_iot_dps_timing
 {
@@ -21,9 +24,9 @@ namespace azure_iot_dps_timing
 
     class Program
     {
-        private static String _Key = "";
-        private static String _RegistrationId = "";
-        private static String _ScopeId = "";
+        private static String _Key = "t727fLW850sW6iRBOErFVeA/ACukbg/83qAJ5V1NnWs=";
+        private static String _RegistrationId = "mydevice2";
+        private static String _ScopeId = "0ne0039D182";
         private static String _Endpoint = "global.azure-devices-provisioning.net";
         private static String _ApiVersion = "2021-06-01";
         private static string _State = "";
@@ -33,17 +36,22 @@ namespace azure_iot_dps_timing
         public static async Task Main(string[] args)
         {
             var services = new ServiceCollection();
-            services.AddHttpClient();
+            var clientCertificate =  X509Certificate2.CreateFromPemFile("device-cert.pem", "device-private-key.pem");
+            
+            var handler = new HttpClientHandler();
+            handler.ClientCertificates.Add(clientCertificate);
 
+            services.AddHttpClient("caClient").ConfigurePrimaryHttpMessageHandler(() => handler);
+            
             var serviceProvider = services.BuildServiceProvider();
-            var client = serviceProvider.GetService<HttpClient>();
-            var sas = GenerateSas($"{_ScopeId}/registrations/{_RegistrationId}", "registration", _Key);
+            var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
 
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("SharedAccessSignature", sas);
+            var client = httpClientFactory.CreateClient("caClient");
 
             var overallStopwatch = new Stopwatch();
             while(true) {
                 if (_State == "" || _State == "registered") {
+                    await Task.Delay(5000);
                     Console.Out.WriteLine("--------------------------------");
                     overallStopwatch.Start();
 
@@ -52,7 +60,9 @@ namespace azure_iot_dps_timing
                     
                     var result = await Register(client);
                     sw.Stop();
-                    Console.WriteLine($"Initial registration call for {result.operationId} completed in {TsFormat(sw.Elapsed)}");
+                    if(result.status == "assigning") {
+                        Console.WriteLine($"Initial registration call for {result.operationId} completed in {TsFormat(sw.Elapsed)}");
+                    }
 
                     _State = result == null ? "" : result.status;
                     _OperationId = result == null ? "" : result.operationId;
@@ -78,6 +88,7 @@ namespace azure_iot_dps_timing
                     _State = "";
                     await Task.Delay(5000);
                 } else {
+                    await Task.Delay(5000);
                     Console.WriteLine("oops!");
                 }
             }
