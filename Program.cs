@@ -24,9 +24,8 @@ namespace azure_iot_dps_timing
 
     class Program
     {
-        private static String _Key = "t727fLW850sW6iRBOErFVeA/ACukbg/83qAJ5V1NnWs=";
-        private static String _RegistrationId = "mydevice2";
-        private static String _ScopeId = "0ne0039D182";
+        private static String _RegistrationId = "";
+        private static String _ScopeId = "";
         private static String _Endpoint = "global.azure-devices-provisioning.net";
         private static String _ApiVersion = "2021-06-01";
         private static string _State = "";
